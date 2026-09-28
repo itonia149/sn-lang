@@ -1,0 +1,2 @@
+sfunc definitely_not_symmetric(a:i64, b:i64) -> i64 = { sub a b };
+main = { print 0 };
