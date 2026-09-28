@@ -1,0 +1,49 @@
+# A tiny recursive text adventure. afunc is intentional: room and command
+# have distinct roles, so reordering them changes the function's meaning.
+
+afunc play(room:str) -> unit = { seq
+    { if { eq room "foyer" }
+        { print "FOYER — exits: north. Commands: look, north, quit" }
+        { print "LIBRARY — commands: look, key, south, quit" }
+    }
+    { step room { readline } }
+};
+
+afunc step(room:str, cmd:str) -> unit = { if { eq cmd "quit" }
+    { print "You leave the ruins. Fin." }
+    { if { eq room "foyer" }
+        { foyer cmd }
+        { library cmd }
+    }
+};
+
+afunc foyer(cmd:str) -> unit = { if { eq cmd "north" }
+    { play "library" }
+    { seq
+        { if { eq cmd "look" }
+            { print "A cracked archway leads north. Rain taps the roof." }
+            { print "Nothing happens." }
+        }
+        { play "foyer" }
+    }
+};
+
+afunc library(cmd:str) -> unit = { if { eq cmd "south" }
+    { play "foyer" }
+    { seq
+        { if { eq cmd "key" }
+            { print "You take the brass key. Somewhere below, a lock clicks." }
+            { if { eq cmd "look" }
+                { print "Dusty books. A brass key lies on a desk." }
+                { print "The library ignores you." }
+            }
+        }
+        { play "library" }
+    }
+};
+
+main = { seq
+    { print "SN ADVENTURE" }
+    { print "Order-free expressions, with explicit asymmetric escape hatches." }
+    { play "foyer" }
+};
