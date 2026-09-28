@@ -1,0 +1,36 @@
+# Strict symmetric compiler kernel for the original four-token demo language.
+# Input tokens are passed as argv in ANY order, e.g.:
+#   ./symmetric_kernel print add 20 22
+#   ./symmetric_kernel 22 print 20 add
+# Output is an unordered two-line IR fact bag consumed by ir_serializer.py.
+
+sfunc has_print(a:str,b:str,c:str,d:str) -> i1 = { or
+    { eq a "print" } { eq b "print" } { eq c "print" } { eq d "print" }
+};
+
+sfunc has_add(a:str,b:str,c:str,d:str) -> i1 = { or
+    { eq a "add" } { eq b "add" } { eq c "add" } { eq d "add" }
+};
+
+sfunc valid(a:str,b:str,c:str,d:str) -> i1 = { and
+    { has_print a b c d } { has_add a b c d }
+};
+
+# atoi("print") and atoi("add") are zero, so only integer token values survive.
+sfunc folded_value(a:str,b:str,c:str,d:str) -> i64 = { add
+    { atoi a } { atoi b } { atoi c } { atoi d }
+};
+
+sfunc marker(ok:i1) -> str = { choose
+    { when ok "IR:print-i64" }
+    { when { nand ok ok } "IR:error" }
+};
+
+# `par` is a commutative effect join: these two stdout lines are a bag of facts,
+# not an ordered stream. The serializer is required to ignore line order.
+sfunc compile(a:str,b:str,c:str,d:str) -> unit = { par
+    { print { marker { valid a b c d } } }
+    { print { folded_value a b c d } }
+};
+
+main = { compile { arg 1 } { arg 2 } { arg 3 } { arg 4 } };
