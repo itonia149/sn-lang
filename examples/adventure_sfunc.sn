@@ -1,0 +1,112 @@
+# Sn symmetric-only adventure demo.
+#
+# Invocation uses four timestamped text events. Their *argv order does not
+# matter*; temporal order is data, not argument position:
+#   ./adventure_sfunc '3:south' '1:north' '4:unlock' '2:key'
+#
+# Every user function is sfunc and --symmetric-only accepts the whole program.
+
+sfunc decode1(x:str) -> i64 = { add
+    { b2i { eq x "1:north" } }
+    { mul 2 { b2i { eq x "1:key" } } }
+    { mul 3 { b2i { eq x "1:south" } } }
+    { mul 4 { b2i { eq x "1:unlock" } } }
+    { mul 5 { b2i { eq x "1:look" } } }
+};
+
+sfunc decode2(x:str) -> i64 = { add
+    { b2i { eq x "2:north" } }
+    { mul 2 { b2i { eq x "2:key" } } }
+    { mul 3 { b2i { eq x "2:south" } } }
+    { mul 4 { b2i { eq x "2:unlock" } } }
+    { mul 5 { b2i { eq x "2:look" } } }
+};
+
+sfunc decode3(x:str) -> i64 = { add
+    { b2i { eq x "3:north" } }
+    { mul 2 { b2i { eq x "3:key" } } }
+    { mul 3 { b2i { eq x "3:south" } } }
+    { mul 4 { b2i { eq x "3:unlock" } } }
+    { mul 5 { b2i { eq x "3:look" } } }
+};
+
+sfunc decode4(x:str) -> i64 = { add
+    { b2i { eq x "4:north" } }
+    { mul 2 { b2i { eq x "4:key" } } }
+    { mul 3 { b2i { eq x "4:south" } } }
+    { mul 4 { b2i { eq x "4:unlock" } } }
+    { mul 5 { b2i { eq x "4:look" } } }
+};
+
+sfunc command1(a:str,b:str,c:str,d:str) -> i64 = { add { decode1 a } { decode1 b } { decode1 c } { decode1 d } };
+sfunc command2(a:str,b:str,c:str,d:str) -> i64 = { add { decode2 a } { decode2 b } { decode2 c } { decode2 d } };
+sfunc command3(a:str,b:str,c:str,d:str) -> i64 = { add { decode3 a } { decode3 b } { decode3 c } { decode3 d } };
+sfunc command4(a:str,b:str,c:str,d:str) -> i64 = { add { decode4 a } { decode4 b } { decode4 c } { decode4 d } };
+
+# States: 100 foyer, 200 library, 300 library+key, 400 foyer+key, 900 escaped.
+# Commands: 1 north, 2 key, 3 south, 4 unlock, 5 look, 0 unknown.
+
+sfunc statepart(x:i64) -> i64 = { add
+    { mul 100 { b2i { eq x 100 } } }
+    { mul 200 { b2i { eq x 200 } } }
+    { mul 300 { b2i { eq x 300 } } }
+    { mul 400 { b2i { eq x 400 } } }
+};
+
+sfunc cmdpart(x:i64) -> i64 = { add
+    { b2i { eq x 1 } }
+    { mul 2 { b2i { eq x 2 } } }
+    { mul 3 { b2i { eq x 3 } } }
+    { mul 4 { b2i { eq x 4 } } }
+    { mul 5 { b2i { eq x 5 } } }
+};
+
+# transition key = state + 10*command. choose is an unordered set of guarded
+# values and traps unless exactly one guard is true.
+sfunc transition(k:i64) -> i64 = { choose
+    { when { eq k 100 } 100 } { when { eq k 110 } 200 }
+    { when { eq k 120 } 100 } { when { eq k 130 } 100 }
+    { when { eq k 140 } 100 } { when { eq k 150 } 100 }
+
+    { when { eq k 200 } 200 } { when { eq k 210 } 200 }
+    { when { eq k 220 } 300 } { when { eq k 230 } 100 }
+    { when { eq k 240 } 200 } { when { eq k 250 } 200 }
+
+    { when { eq k 300 } 300 } { when { eq k 310 } 300 }
+    { when { eq k 320 } 300 } { when { eq k 330 } 400 }
+    { when { eq k 340 } 300 } { when { eq k 350 } 300 }
+
+    { when { eq k 400 } 400 } { when { eq k 410 } 300 }
+    { when { eq k 420 } 400 } { when { eq k 430 } 400 }
+    { when { eq k 440 } 900 } { when { eq k 450 } 400 }
+};
+
+# This is genuinely symmetric: either operand may be the state or the command.
+sfunc step(a:i64,b:i64) -> i64 = { transition { add
+    { statepart a } { statepart b }
+    { mul 10 { cmdpart a } } { mul 10 { cmdpart b } }
+} };
+
+# The four event arguments form an unordered multiset. Turn order is recovered
+# solely from the timestamp prefixes in the text values.
+sfunc outcome(a:str,b:str,c:str,d:str) -> i64 = {
+    step
+    { step
+      { step
+        { step 100 { command1 a b c d } }
+        { command2 a b c d }
+      }
+      { command3 a b c d }
+    }
+    { command4 a b c d }
+};
+
+sfunc ending(state:i64) -> str = { choose
+    { when { eq state 100 } "You end in the foyer without the key." }
+    { when { eq state 200 } "You end in the library without the key." }
+    { when { eq state 300 } "You end in the library carrying the brass key." }
+    { when { eq state 400 } "You return to the foyer with the brass key. The lock waits." }
+    { when { eq state 900 } "You unlock the cellar door and escape. You win." }
+};
+
+main = { print { ending { outcome { arg 1 } { arg 2 } { arg 3 } { arg 4 } } } };
