@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+*.ll
+*.o
+adventure_sfunc
+bootstrap/symmetric_kernel
+bootstrap/kernel_out
+bootstrap/snc_core
+bootstrap/example_core
